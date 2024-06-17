@@ -3,13 +3,16 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/markkurossi/tabulate"
 )
 
 const (
@@ -89,7 +92,7 @@ func getColoStatus(ctx context.Context, client *http.Client) ([]ColoStatus, erro
 	return parseStatusPage(body)
 }
 
-func run() error {
+func run(showTable bool) error {
 	ctx := context.Background()
 	client := &http.Client{}
 
@@ -98,15 +101,35 @@ func run() error {
 		return err
 	}
 
-	for _, colo := range colos {
-		fmt.Printf("%s (%s): %s\n", colo.Name, colo.Group, colo.Status)
+	if showTable {
+		tab := tabulate.New(tabulate.Unicode)
+		tab.Header("Name").SetAlign(tabulate.MR)
+		tab.Header("Status").SetAlign(tabulate.MR)
+		tab.Header("Group").SetAlign(tabulate.MR)
+
+		for _, colo := range colos {
+			row := tab.Row()
+			row.Column(colo.Name)
+			row.Column(colo.Status)
+			row.Column(colo.Group)
+		}
+
+		tab.Print(os.Stdout)
+	} else {
+		for _, colo := range colos {
+			fmt.Printf("%s (%s): %s\n", colo.Name, colo.Group, colo.Status)
+		}
 	}
 
 	return nil
 }
 
 func main() {
-	if err := run(); err != nil {
+	var flagTable bool
+	flag.BoolVar(&flagTable, "table", false, "Show results in an ascii table")
+	flag.Parse()
+
+	if err := run(flagTable); err != nil {
 		log.Fatal(err)
 	}
 }
